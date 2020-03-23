@@ -1,0 +1,47 @@
+version: '3.7'
+
+volumes:
+  nats-data: {}
+  nats-dumps: {}
+
+networks:
+  mynet:
+    driver: overlay
+    name: mynet
+    attachable: true
+
+services:
+  #NATS-------------------------------------------------------------------------------------------------------------------
+  nats-streaming-server:
+    container_name: nats-streaming-server
+    image: nats-streaming:latest
+    command: [
+      "-m", "8222",
+      "--store", "SQL",
+      "--sql_driver", "postgres",
+      "--sql_source", "user=nats password=nats host=nats-database port=5432 dbname=nats sslmode=disable",
+      "--max_age", "24h",
+      "--max_inactivity", "1h"
+    ]
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    depends_on:
+      - nats-database
+    networks:
+      - mynet
+  nats-database:
+    container_name: nats-database
+    image: postgres:10.0-alpine
+    environment:
+      - POSTGRES_DB=nats
+      - POSTGRES_USER=nats
+      - POSTGRES_PASSWORD=nats
+      - TZ=UTC
+    ports:
+      - "5535:5432"
+    volumes:
+      - nats-data:/var/lib/postgresql/data
+      - nats-dumps:/var/dumps
+    networks:
+      - mynet
